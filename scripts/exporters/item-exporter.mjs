@@ -5,11 +5,11 @@ export class ItemExporter extends AbstractExporter {
     const { name, system } = document;
     const documentData = { name };
 
-    if (system.description.value) documentData.description = system.description.value;
+    if (system?.description.value) documentData.description = system.description.value;
 
     AbstractExporter._addCustomMapping(customMapping, document, documentData);
 
-    if (system.activities) {
+    if (system?.activities) {
       Object.keys(system.activities).forEach(activity => {
         const { name, activation, description, roll, type, _id, profiles } = system.activities[activity];
         const currentActivity = {};
@@ -54,7 +54,7 @@ export class ItemExporter extends AbstractExporter {
       });
     }
 
-    if (AbstractExporter._hasContent(system.advancement)) {
+    if (AbstractExporter._hasContent(system?.advancement)) {
       system.advancement.forEach(({ _id, title, hint }) => {
         const advancementData = { ...title && { title }, ...hint && { hint } };
 
@@ -74,7 +74,7 @@ export class ItemExporter extends AbstractExporter {
 
     for (const indexDocument of documents) {
       const documentData = ItemExporter.getDocumentData(
-        foundry.utils.duplicate(await this.pack.getDocument(indexDocument._id)), // duplicate fix real name from document
+        foundry.utils.duplicate(await this.pack.getDocument(indexDocument._id)),
         this.options.customMapping.item,
       );
 

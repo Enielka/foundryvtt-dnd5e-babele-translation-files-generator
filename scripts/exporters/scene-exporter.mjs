@@ -1,5 +1,5 @@
 import { AbstractExporter } from './abstract-exporter.mjs';
-import { ItemExporter } from './item-exporter.mjs';
+import { ActorExporter } from './actor-exporter.mjs';
 
 export class SceneExporter extends AbstractExporter {
   static getDocumentData(document, customMapping) {
@@ -25,36 +25,12 @@ export class SceneExporter extends AbstractExporter {
     }
 
     if (AbstractExporter._hasContent(document.tokens)) {
-      for (const { name: tokenName, delta } of document.tokens) {
-        const { name: deltaName, system, items, effects } = delta;
-        const description = system?.details?.biography?.value;
-
-        if (!deltaName && !description && !AbstractExporter._hasContent(items) && !AbstractExporter._hasContent(effects)) continue;
-
-        documentData.deltaTokens = documentData.deltaTokens ?? {};
-        documentData.deltaTokens[tokenName] = {};
-
-        if (deltaName) documentData.deltaTokens[tokenName].name = deltaName;
-        
-        if (description) documentData.deltaTokens[tokenName].description = description;
-        
-        if (AbstractExporter._hasContent(items)) {
-          documentData.deltaTokens[tokenName].items = {};
-          for (const item of items) {
-            if (item.name) {
-              documentData.deltaTokens[tokenName].items[item.name] = ItemExporter.getDocumentData(foundry.utils.duplicate(item), customMapping.item ?? customMapping);
-            }
-          }
-        }
-
-        if (AbstractExporter._hasContent(effects)) {
-          documentData.deltaTokens[tokenName].effects = {};
-          for (const { name, description } of effects) {
-            if (name) {
-              documentData.deltaTokens[tokenName].effects[name] = { name };
-              if (description) documentData.deltaTokens[tokenName].effects[name].description = description;
-            }
-          }
+      for (const { _id, name: tokenName, delta } of document.tokens) {
+        const deltaToken = ActorExporter.getDocumentData(delta, customMapping, true);
+        if (Object.keys(deltaToken).length) {
+          documentData.deltaTokens = documentData.deltaTokens ?? {};
+          const key = documentData.deltaTokens[tokenName] && !foundry.utils.objectsEqual(documentData.deltaTokens[tokenName], deltaToken) ? _id : tokenName;
+          documentData.deltaTokens[key] = deltaToken;
         }
       }
     }

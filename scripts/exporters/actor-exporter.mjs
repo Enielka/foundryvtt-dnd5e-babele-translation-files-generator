@@ -3,8 +3,8 @@ import { ItemExporter } from './item-exporter.mjs';
 
 export class ActorExporter extends AbstractExporter {
   static getDocumentData(document, customMapping, useItemMapping) {
-    const { name, prototypeToken: { name: tokenName } = {}, system: { details: { biography: { value: description } = {} } } } = document;
-    const documentData = { name, tokenName: tokenName ?? name };
+    const { name, prototypeToken: { name: tokenName } = {}, system: { details: { biography: { value: description } = {} } = {} } } = document;
+    const documentData = { ...name && { name }, ...tokenName && { tokenName } };
 
     if (description) documentData.description = description;
 
@@ -12,7 +12,7 @@ export class ActorExporter extends AbstractExporter {
 
     if (AbstractExporter._hasContent(document.items)) {
       documentData.items = {};
-      document.items.forEach(item => {
+      document.items.filter(item => !item._tombstone).forEach(item => {
         const itemData = ItemExporter.getDocumentData(foundry.utils.duplicate(item), useItemMapping ? customMapping.item : {});
         const key = documentData.items[item.name] && !foundry.utils.objectsEqual(documentData.items[item.name], itemData) ? item._id : item.name;
         documentData.items[key] = itemData;
@@ -20,12 +20,20 @@ export class ActorExporter extends AbstractExporter {
     }
 
     if (AbstractExporter._hasContent(document.effects)) {
-      documentData.effects = Object.fromEntries(
-        document.effects.map(({ name, description }) => [
-          name,
-          { name, ...(description && { description }) }
-        ])
-      );
+      documentData.effects = {};
+      document.effects.filter(effect => !effect._tombstone).forEach(effect => {
+        const { _id, name, description, changes } = effect;
+        const changesObj = (changes && Array.isArray(changes)) ? changes.reduce((acc, change) => {
+          if (change.key === 'name') acc.name = change.value;
+          if (change.key === 'system.description.value') acc['system.description.value'] = change.value;
+          return acc;
+        }, {}) : {};
+
+        const effectData = { name, ...description && { description }, ...Object.keys(changesObj).length && { changes: changesObj } };
+        
+        const key = documentData.effects[name] && !foundry.utils.objectsEqual(documentData.effects[name], effectData) ? _id : name;
+        documentData.effects[key] = effectData;
+      });
     }
 
     return documentData;
