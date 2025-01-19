@@ -5,7 +5,7 @@ export class CardsExporter extends AbstractExporter {
     const { name, description } = document;
     const documentData = { name, description };
 
-    if (AbstractExporter._hasContent(document.cards)) {
+    if (this._hasContent(document.cards)) {
       documentData.cards = Object.fromEntries(
         document.cards.map(({ name, description, back, faces }) => [
           name, { name, description, back, faces }

@@ -4,9 +4,9 @@ export class JournalEntryExporter extends AbstractExporter {
   static getDocumentData(document, customMapping) {
     const documentData = { name: document.name };
 
-    AbstractExporter._addCustomMapping(customMapping.journalEntry, document, documentData);
+    this._addCustomMapping(customMapping.journalEntry, document, documentData);
 
-    if (AbstractExporter._hasContent(document.pages)) {
+    if (this._hasContent(document.pages)) {
       documentData.pages = Object.fromEntries(
         document.pages.map(({
           name,

@@ -36,6 +36,8 @@ export class AdventureExporter extends AbstractExporter {
         let key = this.options.useIdAsKey ? document._id : document.name;
         key = this.dataset.entries[avPack.name].scenes[key] && !foundry.utils.objectsEqual(this.dataset.entries[avPack.name].scenes[key], documentData) ? document._id : key;
 
+        if (!this.dataset.mapping.scenes.deltaTokens && documentData.deltaTokens) this.dataset.mapping.scenes.deltaTokens = { path: "tokens", converter: "tokens" };
+
         this.dataset.entries[avPack.name].scenes[key] = foundry.utils.mergeObject(documentData, (this.existingContent[avPack.name]?.scenes ?? {})[key] ?? {});
 
         this._stepProgressBar();
@@ -68,6 +70,8 @@ export class AdventureExporter extends AbstractExporter {
       // Actors
       for (const document of avPack.actors) {
         const documentData = exporters.ActorExporter.getDocumentData(document, this.options.customMapping, this.options.useItemMapping);
+
+        exporters.ActorExporter.addBaseMapping(this.dataset.mapping.actors, document, documentData);
         
         let key = this.options.useIdAsKey ? document._id : document.name;
         key = this.dataset.entries[avPack.name].actors[key] && !foundry.utils.objectsEqual(this.dataset.entries[avPack.name].actors[key], documentData) ? document._id : key;
@@ -81,6 +85,8 @@ export class AdventureExporter extends AbstractExporter {
       for (const document of avPack.items) {
         const documentData = exporters.ItemExporter.getDocumentData(document, this.options.customMapping.item);
 
+        exporters.ItemExporter.addBaseMapping(this.dataset.mapping.items, document, documentData);
+        
         let key = this.options.useIdAsKey ? document._id : document.name;
         key = this.dataset.entries[avPack.name].items[key] && !foundry.utils.objectsEqual(this.dataset.entries[avPack.name].items[key], documentData) ? document._id : key;
 

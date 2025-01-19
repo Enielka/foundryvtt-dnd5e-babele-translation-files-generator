@@ -5,7 +5,7 @@ export class RollTableExporter extends AbstractExporter {
     const { name, description } = document;
     const documentData = { name, ...(description && { description }) };
 
-    if (AbstractExporter._hasContent(document.results)) {
+    if (this._hasContent(document.results)) {
       documentData.results = Object.fromEntries(
         document.results.map(({ range, text }) => [`${range[0]}-${range[1]}`, text])
       );

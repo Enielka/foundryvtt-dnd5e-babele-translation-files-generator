@@ -5,7 +5,7 @@ export class PlaylistExporter extends AbstractExporter {
     const { name, description } = document;
     const documentData = { name, ...(description && { description }) };
 
-    if (AbstractExporter._hasContent(document.sounds)) {
+    if (this._hasContent(document.sounds)) {
       documentData.sounds = Object.fromEntries(
         document.sounds.map(sound => [sound.name, sound])
       );

@@ -7,7 +7,7 @@ export class ItemExporter extends AbstractExporter {
 
     if (system?.description.value) documentData.description = system.description.value;
 
-    AbstractExporter._addCustomMapping(customMapping, document, documentData);
+    this._addCustomMapping(customMapping, document, documentData);
 
     if (system?.activities) {
       Object.keys(system.activities).forEach(activity => {
@@ -24,7 +24,7 @@ export class ItemExporter extends AbstractExporter {
           .filter(({ name }) => name)
           .map(({ name }) => [ name, { name } ]);
 
-          if (AbstractExporter._hasContent(filteredProfiles))
+          if (this._hasContent(filteredProfiles))
             currentActivity.profiles = Object.fromEntries(filteredProfiles);
         }
 
@@ -37,7 +37,7 @@ export class ItemExporter extends AbstractExporter {
       });
     }
 
-    if (AbstractExporter._hasContent(document.effects)) {
+    if (this._hasContent(document.effects)) {
       documentData.effects = {};
       document.effects.forEach(effect => {
         const { _id, name, description, changes } = effect;
@@ -54,7 +54,7 @@ export class ItemExporter extends AbstractExporter {
       });
     }
 
-    if (AbstractExporter._hasContent(system?.advancement)) {
+    if (this._hasContent(system?.advancement)) {
       system.advancement.forEach(({ _id, title, hint }) => {
         const advancementData = { ...title && { title }, ...hint && { hint } };
 
@@ -69,17 +69,85 @@ export class ItemExporter extends AbstractExporter {
     return documentData;
   }
 
+  static addBaseMapping(mapping, document, documentData) {
+    const { system } = document;
+    const { source, movement, senses, weight, range, target, activities, advancement } = system;
+
+    const updateMapping = (field, condition, path, converter) => {
+      if (!mapping[field] && condition) {
+        mapping[field] = { path, converter };
+      }
+    };
+
+    updateMapping('sources', source?.book || source?.custom, 'system.source', 'source');
+
+    const movementCondition = movement && ["ft", "mi"].includes(movement.units) &&
+      (movement.burrow || movement.climb || movement.swim || movement.walk || movement.fly);
+    updateMapping('movement', movementCondition, 'system.movement', 'movement');
+
+    const sensesCondition = senses && ["ft", "mi"].includes(senses.units) &&
+      (senses.darkvision || senses.blindsight || senses.tremorsense || senses.truesight);
+    updateMapping('senses', sensesCondition, 'system.senses', 'senses');
+
+    if (weight && ["lb", "tn"].includes(weight.units) && weight.value) {
+      updateMapping('weight', true, 'system.weight', 'weight');
+    }
+
+    if (range && ["ft", "mi"].includes(range.units) && (range.value || range.long || range.reach)) {
+      updateMapping('range', true, 'system.range', 'range');
+    }
+
+    if (target && ["ft", "mi"].includes(target.template?.units) &&
+      (target.template.size || target.template.height || target.template.width || target.affects.count)) {
+      updateMapping('target', true, 'system.target', 'target');
+    }
+
+    if (activities) {
+      for (const key in activities) {
+        const activity = activities[key];
+        const activityCondition = ["ft", "mi"].includes(activity.range.units) &&
+          (activity.range.value || activity.range.long || activity.range.reach) ||
+          ["ft", "mi"].includes(activity.target.template.units) &&
+          (activity.target.template.size || activity.target.template.height ||
+            activity.target.template.width || activity.target.affects.count);
+
+        if (activityCondition) {
+          updateMapping('rangeActivities', true, 'system.activities', 'rangeActivities');
+          break;
+        }
+      }
+    }
+
+    if (advancement?.length) {
+      for (const adv of advancement) {
+        if (adv.type === "ScaleValue" && adv.configuration.type === "distance" &&
+          ["ft", "mi"].includes(adv.configuration.distance.units)) {
+          for (const key in adv.configuration.scale) {
+            if (adv.configuration.scale[key].value) {
+              updateMapping('distanceAdvancement', true, 'system.advancement', 'distanceAdvancement');
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    updateMapping('activities', documentData.activities, 'system.activities', 'activities');
+    updateMapping('effects', documentData.effects, 'effects', 'effects');
+    updateMapping('advancement', documentData.advancement, 'system.advancement', 'advancement');
+  }
+
   async _processDataset() {
     const documents = await this.pack.getIndex();
 
     for (const indexDocument of documents) {
-      const documentData = ItemExporter.getDocumentData(
-        foundry.utils.duplicate(await this.pack.getDocument(indexDocument._id)),
-        this.options.customMapping.item,
-      );
+      const document = foundry.utils.duplicate(await this.pack.getDocument(indexDocument._id));
+      const documentData = ItemExporter.getDocumentData(document, this.options.customMapping.item);
 
-      let key = this.options.useIdAsKey ? indexDocument._id : indexDocument.name;
-      key = this.dataset.entries[key] && !foundry.utils.objectsEqual(this.dataset.entries[key], documentData) ? indexDocument._id : key;
+      ItemExporter.addBaseMapping(this.dataset.mapping, document, documentData);
+
+      let key = this.options.useIdAsKey ? document._id : document.name;
+      key = this.dataset.entries[key] && !foundry.utils.objectsEqual(this.dataset.entries[key], documentData) ? document._id : key;
 
       this.dataset.entries[key] = foundry.utils.mergeObject(documentData, this.existingContent[key] ?? {});
 

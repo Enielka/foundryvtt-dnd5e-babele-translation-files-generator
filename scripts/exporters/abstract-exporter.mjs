@@ -125,10 +125,6 @@ export class AbstractExporter {
 
         break;
     }
-
-    if (0 === Object.keys(this.dataset.mapping).length) {
-      delete this.dataset.mapping;
-    }
   }
 
   async _processDataset() {

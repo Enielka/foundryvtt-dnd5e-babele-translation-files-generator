@@ -8,9 +8,9 @@ export class ActorExporter extends AbstractExporter {
 
     if (description) documentData.description = description;
 
-    AbstractExporter._addCustomMapping(customMapping.actor, document, documentData);
+    this._addCustomMapping(customMapping.actor, document, documentData);
 
-    if (AbstractExporter._hasContent(document.items)) {
+    if (this._hasContent(document.items)) {
       documentData.items = {};
       document.items.filter(item => !item._tombstone).forEach(item => {
         const itemData = ItemExporter.getDocumentData(foundry.utils.duplicate(item), useItemMapping ? customMapping.item : {});
@@ -19,7 +19,7 @@ export class ActorExporter extends AbstractExporter {
       });
     }
 
-    if (AbstractExporter._hasContent(document.effects)) {
+    if (this._hasContent(document.effects)) {
       const conditionsToIgnore = [
         "dnd5eblinded0000", "dnd5eexhaustion0", "dnd5eincapacitat", "dnd5epetrified00", "dnd5erestrained0",
         "dnd5estunned0000", "dnd5epoisoned000", "dnd5einvisible00", "dnd5efrightened0", "dnd5echarmed0000",
@@ -43,20 +43,47 @@ export class ActorExporter extends AbstractExporter {
 
     return documentData;
   }
+  
+  static addBaseMapping(mapping, document, documentData) {
+    const { system, prototypeToken } = document;
+    const { source, attributes } = system;
+    const { movement, senses } = attributes;
+    
+    const updateMapping = (field, condition, path, converter) => {
+      if (!mapping[field] && condition) {
+        mapping[field] = { path, converter };
+      }
+    };
+    
+    if (!mapping.tokenName && documentData.name !== documentData.tokenName) mapping.tokenName = "prototypeToken.name";
+    
+    updateMapping('sources', source?.book || source?.custom, 'system.source', 'source');
+    updateMapping('token', prototypeToken?.sight?.range, 'prototypeToken.sight.range', 'sightRange');
+
+    const movementCondition = movement && ["ft", "mi"].includes(movement.units) &&
+      (movement.burrow || movement.climb || movement.swim || movement.walk || movement.fly);
+    updateMapping('movement', movementCondition, 'system.attributes.movement', 'movement');
+
+    const sensesCondition = senses && ["ft", "mi"].includes(senses.units) &&
+      (senses.darkvision || senses.blindsight || senses.tremorsense || senses.truesight);
+    updateMapping('senses', sensesCondition, 'system.attributes.senses', 'senses');
+
+    updateMapping('items', documentData.items, 'items', 'items');
+    updateMapping('effects', documentData.effects, 'effects', 'effects');
+  }
 
   async _processDataset() {
     const documents = await this.pack.getIndex();
 
     for (const indexDocument of documents) {
-      const documentData = ActorExporter.getDocumentData(
-        await this.pack.getDocument(indexDocument._id),
-        this.options.customMapping,
-        true
-      );
+      const document = await this.pack.getDocument(indexDocument._id);
+      const documentData = ActorExporter.getDocumentData(document, this.options.customMapping, true);
 
-      let key = this.options.useIdAsKey ? indexDocument._id : indexDocument.name;
-      key = this.dataset.entries[key] && !foundry.utils.objectsEqual(this.dataset.entries[key], documentData) ? indexDocument._id : key;
+      ActorExporter.addBaseMapping(this.dataset.mapping, document, documentData);
 
+      let key = this.options.useIdAsKey ? document._id : document.name;
+      key = this.dataset.entries[key] && !foundry.utils.objectsEqual(this.dataset.entries[key], documentData) ? document._id : key;
+      
       this.dataset.entries[key] = foundry.utils.mergeObject(documentData, this.existingContent[key] ?? {});
 
       this._stepProgressBar();
