@@ -7,54 +7,61 @@ export class JournalEntryExporter extends AbstractExporter {
     this._addCustomMapping(customMapping.journalEntry, document, documentData);
 
     if (this._hasContent(document.pages)) {
-      documentData.pages = Object.fromEntries(
-        document.pages.map(({
-          name,
-          image: { caption } = {},
-          src,
-          video: { width, height } = {},
-          text: { content: text } = {},
-          system: {
-            tooltip,
-            subclassHeader,
-            unlinkedSpells,
-            description: {
-              value: description,
-              additionalEquipment,
-              additionalHitPoints,
-              additionalTraits,
-              subclass
-            } = {}
-          } = {},
-          flags: { dnd5e: { title: flagsTitle } = {} } = {}
-        }) => [
-          name, 
-          { 
-            name,
-            ...(caption && { caption }),
-            ...(src && { src }),
-            ...(width && { width }),
-            ...(height && { height }),
-            ...(text && { text }),
-            ...(tooltip && { tooltip }),
-            ...(subclassHeader && { subclassHeader }),
-            ...(description && { description }),
-            ...(additionalEquipment && { additionalEquipment }),
-            ...(additionalHitPoints && { additionalHitPoints }),
-            ...(additionalTraits && { additionalTraits }),
-            ...(subclass && { subclass }),
-            ...(flagsTitle && { flagsTitle }),
-            ...(unlinkedSpells && Object.keys(unlinkedSpells).length > 0 && {
-              unlinkedSpells: Object.fromEntries(Object.entries(unlinkedSpells).map(
-                ([key, value]) => [value.name, { name: value.name }]))
+        const pageTracker = new Set();
+
+        documentData.pages = Object.fromEntries(
+            document.pages.map(({ 
+                id, 
+                name, 
+                image: { caption } = {}, 
+                src, 
+                video: { width, height } = {}, 
+                text: { content: text } = {}, 
+                system: {
+                    tooltip,
+                    subclassHeader,
+                    unlinkedSpells,
+                    description: {
+                        value: description,
+                        additionalEquipment,
+                        additionalHitPoints,
+                        additionalTraits,
+                        subclass
+                    } = {}
+                } = {}, 
+                flags: { dnd5e: { title: flagsTitle } = {} } = {}
+            }) => {
+                const uniqueName = pageTracker.has(name) ? id : name;
+                pageTracker.add(name);
+                return [
+                    uniqueName,
+                    {
+                        name,
+                        ...(caption && { caption }),
+                        ...(src && { src }),
+                        ...(width && { width }),
+                        ...(height && { height }),
+                        ...(text && { text }),
+                        ...(tooltip && { tooltip }),
+                        ...(subclassHeader && { subclassHeader }),
+                        ...(description && { description }),
+                        ...(additionalEquipment && { additionalEquipment }),
+                        ...(additionalHitPoints && { additionalHitPoints }),
+                        ...(additionalTraits && { additionalTraits }),
+                        ...(subclass && { subclass }),
+                        ...(flagsTitle && { flagsTitle }),
+                        ...(unlinkedSpells && Object.keys(unlinkedSpells).length > 0 && {
+                            unlinkedSpells: Object.fromEntries(Object.entries(unlinkedSpells).map(
+                              ([key, value]) => [value.name, { name: value.name }]))
+                        })
+                    }
+                ];
             })
-          }
-        ])
-      );
+        );
     }
 
     return documentData;
-  }
+}
 
   async _processDataset() {
     const documents = await this.pack.getIndex();

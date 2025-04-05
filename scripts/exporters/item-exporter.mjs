@@ -105,9 +105,9 @@ export class ItemExporter extends AbstractExporter {
     if (activities) {
       for (const key in activities) {
         const activity = activities[key];
-        const activityCondition = ["ft", "mi"].includes(activity.range.units) &&
+        const activityCondition = ["ft", "mi"].includes(activity.range?.units) &&
           (activity.range.value || activity.range.long || activity.range.reach) ||
-          ["ft", "mi"].includes(activity.target.template.units) &&
+          ["ft", "mi"].includes(activity.target?.template.units) &&
           (activity.target.template.size || activity.target.template.height ||
             activity.target.template.width || activity.target.affects.count);
 
